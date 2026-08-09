@@ -12,6 +12,8 @@ const { getStats, updateStatsFromEvaluation } = require("./state/statsStore");
 const { initializeAgent } = require("./state/agentState");
 const { generatePost } = require("./generation/generatePost");
 const { selectTopicForPublishing } = require("./publishing/selectTopic");
+const { getPosts } = require("./publishing/feedStore");
+const { runAgentCycle } = require("./publishing/runAgentCycle");
 const {
   searchBreethMemory,
   rememberInBreeth,
@@ -63,6 +65,29 @@ app.post("/api/agent/init", (req, res) => {
     name: persona.name.trim(),
     domain: persona.domain.trim(),
   });
+  state.autonomous.enabled = true;
+  setInterval(async () => {
+  const currentState = getAgentState();
+
+  if (!currentState || !currentState.autonomous.enabled) {
+    return;
+  }
+
+  try {
+    const post = await runAgentCycle(currentState);
+
+    if (post) {
+      console.log(
+        `[BYTE] Autonomous post created: ${post.id}`
+      );
+    }
+  } catch (err) {
+    console.error(
+      "[BYTE] Autonomous cycle failed:",
+      err.message
+    );
+  }
+}, 30 * 1000);
 
   res.json({ agentId: state.agentId });
 });
@@ -140,7 +165,7 @@ app.get("/api/intelligence", async (req, res) => {
     });
   }
 });
-app.get("/api/agent/feed", async (req, res) => {
+app.get("/api/agent/feed", (req, res) => {
   const { agentId } = req.query;
   const state = getAgentState();
 
@@ -156,64 +181,14 @@ app.get("/api/agent/feed", async (req, res) => {
     });
   }
 
-  try {
-    const { items, warnings, fetchedAt } = await discoverTopics();
+  const posts = [...state.publishedPosts].sort(
+    (a, b) =>
+      new Date(b.createdAt) - new Date(a.createdAt)
+  );
 
-    const evaluatedItems = evaluateTopics(items);
-
-    const memoryAwareItems = evaluatedItems.map((topic) => ({
-      ...topic,
-      previouslySeen: hasRememberedTopic(topic),
-    }));
-
-    updateStatsFromEvaluation(memoryAwareItems);
-
-    const selectedTopic = selectTopicForPublishing(memoryAwareItems);
-
-    if (selectedTopic) {
-      const generated = generatePost(
-        selectedTopic,
-        state.persona
-      );
-
-      const post = {
-        id: require("crypto").randomUUID(),
-        createdAt: new Date().toISOString(),
-        text: generated.text,
-        rationale: generated.rationale,
-        sources: generated.sources,
-      };
-
-      state.publishedPosts.push(post);
-
-      rememberTopic(selectedTopic);
-    }
-
-    const posts = [...state.publishedPosts].sort(
-      (a, b) =>
-        new Date(b.createdAt) - new Date(a.createdAt)
-    );
-
-    res.json({
-      posts,
-      ...(warnings &&
-        warnings.length > 0 && {
-          warnings,
-        }),
-      fetchedAt,
-    });
-  } catch (err) {
-    console.error(
-      "[api/agent/feed] Failure:",
-      err.message
-    );
-
-    res.status(200).json({
-      posts: state.publishedPosts || [],
-      error:
-        "Autonomous publishing temporarily unavailable.",
-    });
-  }
+  res.json({
+    posts,
+  });
 });
 // ---------- Start server ----------
 
