@@ -4,13 +4,10 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
-const {
-  stats,
-  pipelineStatus,
-  intelligence,
-  decisions,
-  memory,
-} = require("./data/mockData");
+const { pipelineStatus, decisions, memory } = require("./data/mockData");
+const { discoverTopics } = require("./discovery/discoverTopics");
+const { evaluateTopics } = require("./evaluation/evaluateTopic");
+const { getStats, updateStatsFromEvaluation } = require("./state/statsStore");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,17 +31,13 @@ app.get("/api/status", (req, res) => {
 });
 
 app.get("/api/stats", (req, res) => {
-  res.json(stats);
+  res.json(getStats());
 });
 
-// ---------- New foundation routes ----------
+// ---------- Pipeline / decisions / memory (still static placeholders) ----------
 
 app.get("/api/pipeline/status", (req, res) => {
   res.json(pipelineStatus);
-});
-
-app.get("/api/intelligence", (req, res) => {
-  res.json(intelligence);
 });
 
 app.get("/api/decisions", (req, res) => {
@@ -53,6 +46,29 @@ app.get("/api/decisions", (req, res) => {
 
 app.get("/api/memory", (req, res) => {
   res.json(memory);
+});
+
+// ---------- Checkpoint 3 + 4: discovery -> evaluation ----------
+
+app.get("/api/intelligence", async (req, res) => {
+  try {
+    const { items, warnings, fetchedAt } = await discoverTopics();
+    const evaluatedItems = evaluateTopics(items);
+
+    updateStatsFromEvaluation(evaluatedItems);
+
+    res.json({
+      items: evaluatedItems,
+      fetchedAt,
+      ...(warnings && warnings.length > 0 && { warnings }),
+    });
+  } catch (err) {
+    console.error("[api/intelligence] Unexpected failure:", err.message);
+    res.status(200).json({
+      items: [],
+      error: "Discovery/evaluation temporarily unavailable. Please try again shortly.",
+    });
+  }
 });
 
 // ---------- Start server ----------

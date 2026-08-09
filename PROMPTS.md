@@ -143,3 +143,172 @@ Claude
 Added the backend API foundation with mock data and endpoints for
 pipeline status, intelligence, decisions, and memory. No real AI,
 database, or discovery logic has been added yet.
+
+## 4. Real Topic Discovery
+
+### Prompt
+
+We are building BYTE, an AI Engineering Watchdog for a hackathon.
+
+The existing project is a React + Vite frontend and Node.js + Express backend.
+
+Implement Checkpoint 3: Real Topic Discovery.
+
+BYTE should fetch current AI/technology topics from a real public source and expose them through:
+
+GET /api/intelligence
+
+Use a reliable public source that does not require an API key if possible. Prefer RSS feeds or another simple public HTTP source rather than introducing a complicated third-party service.
+
+Create a separate discovery module instead of putting discovery logic directly inside server.js.
+
+Each discovered topic should have a stable structure containing:
+
+* id
+* title
+* summary
+* source
+* url
+* publishedAt
+* tag
+
+Keep the existing backend endpoints working.
+
+Do not implement:
+
+* AI/LLM evaluation
+* content generation
+* database persistence
+* memory
+* authentication
+* API keys or secrets
+
+Handle external-source failures gracefully so the server does not crash.
+
+Do not modify the frontend during this checkpoint.
+
+Avoid unnecessary dependencies.
+
+### Purpose
+
+Replace the empty intelligence API foundation with real current AI/technology topic discovery while keeping the architecture modular for the later evaluation, generation, and memory stages.
+
+### AI Tool
+
+Claude
+
+### Outcome
+
+Implemented the first real BYTE agent capability: discovering current AI/technology topics from a public source and exposing normalized topics through the backend intelligence API.
+
+## 5. Editorial Evaluation
+
+### Prompt
+
+We are now implementing CHECKPOINT 4 of BYTE — AI Engineering Watchdog.
+
+Checkpoint 3 is complete and verified.
+
+Current architecture:
+
+* React + Vite frontend
+* Node.js + Express backend
+* `backend/discovery/discoverTopics.js` fetches real RSS topics
+* `GET /api/intelligence` returns discovered topics containing:
+
+  * `id`
+  * `title`
+  * `summary`
+  * `source`
+  * `url`
+  * `publishedAt`
+  * `tag`
+
+Now implement ONLY CHECKPOINT 4: Editorial Evaluation.
+
+Goal:
+
+Take the discovered topics from `discoverTopics()` and evaluate them using a deterministic editorial scoring system first. Do NOT add an LLM/API key yet.
+
+BYTE should score each topic using:
+
+1. Technical relevance
+2. Engineering impact
+3. Source credibility
+4. Novelty
+5. Reproducibility / evidence
+
+Each discovered topic should receive:
+
+* `score`
+* `decision`: `"accepted"` or `"rejected"`
+* `reason`
+* `evaluation breakdown`
+
+Use sensible keyword/source-based heuristics so the system is actually functional without an AI API.
+
+The evaluation should reject obvious low-signal content such as:
+
+* rumors
+* promotional spam
+* unrelated products
+* low-quality speculation
+* non-engineering entertainment content
+
+It should prefer:
+
+* AI research
+* LLMs
+* model releases
+* inference
+* agents
+* AI infrastructure
+* benchmarks
+* developer tools
+* ML engineering
+* technical papers
+* reproducible engineering work
+
+Update `GET /api/intelligence` so it:
+
+1. discovers topics
+2. evaluates every topic
+3. returns the evaluated topics
+
+Also update the stats so accepted/rejected counts reflect the current evaluation result.
+
+Keep the implementation modular.
+
+Do NOT implement:
+
+* persistent memory
+* Breeth
+* content generation
+* frontend redesign
+* authentication
+* database
+* LLM API calls
+
+Do not break the existing endpoints.
+
+After implementation, provide:
+
+1. files created/modified
+2. complete code for each changed file
+3. npm commands required
+4. curl commands to test
+5. explanation of how discovery → evaluation works
+
+Do not modify unrelated files.
+
+### Purpose
+
+Add BYTE's first real editorial decision-making layer so discovered topics can be intelligently filtered into accepted and rejected engineering intelligence.
+
+### AI Tool
+
+Claude
+
+### Outcome
+
+Pending — implementation and testing in progress.
