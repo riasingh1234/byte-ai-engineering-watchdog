@@ -10,6 +10,8 @@ const { discoverTopics } = require("./discovery/discoverTopics");
 const { evaluateTopics } = require("./evaluation/evaluateTopic");
 const { getStats, updateStatsFromEvaluation } = require("./state/statsStore");
 const { initializeAgent } = require("./state/agentState");
+const { generatePost } = require("./generation/generatePost");
+const { selectTopicForPublishing } = require("./publishing/selectTopic");
 const {
   searchBreethMemory,
   rememberInBreeth,
@@ -18,6 +20,7 @@ const {
   hasRememberedTopic,
   rememberTopic,
 } = require("./memory/memoryStore");
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -83,11 +86,42 @@ app.get("/api/memory", (req, res) => {
 app.get("/api/intelligence", async (req, res) => {
   try {
     const { items, warnings, fetchedAt } = await discoverTopics();
+
     const evaluatedItems = evaluateTopics(items);
-    const memoryAwareItems = evaluatedItems.map((topic) => ({
-  ...topic,
-  previouslySeen: hasRememberedTopic(topic),
-}));
+
+    const memoryAwareItems = [];
+
+    for (const topic of evaluatedItems) {
+      try {
+        const previouslySeen = await hasRememberedTopic(topic);
+
+        const updatedTopic = {
+          ...topic,
+          previouslySeen,
+        };
+
+        if (topic.decision === "accepted" && !previouslySeen) {
+          await rememberTopic(topic);
+          updatedTopic.rememberedNow = true;
+        } else {
+          updatedTopic.rememberedNow = false;
+        }
+
+        memoryAwareItems.push(updatedTopic);
+      } catch (memoryError) {
+        console.error(
+          `[Breeth] Memory processing failed for "${topic.title}":`,
+          memoryError.message
+        );
+
+        memoryAwareItems.push({
+          ...topic,
+          previouslySeen: false,
+          rememberedNow: false,
+          memoryError: "Memory unavailable",
+        });
+      }
+    }
 
     updateStatsFromEvaluation(memoryAwareItems);
 
@@ -98,13 +132,89 @@ app.get("/api/intelligence", async (req, res) => {
     });
   } catch (err) {
     console.error("[api/intelligence] Unexpected failure:", err.message);
+
     res.status(200).json({
       items: [],
-      error: "Discovery/evaluation temporarily unavailable. Please try again shortly.",
+      error:
+        "Discovery/evaluation temporarily unavailable. Please try again shortly.",
     });
   }
 });
+app.get("/api/agent/feed", async (req, res) => {
+  const { agentId } = req.query;
+  const state = getAgentState();
 
+  if (!state) {
+    return res.status(400).json({
+      error: "Agent has not been initialized.",
+    });
+  }
+
+  if (agentId !== state.agentId) {
+    return res.status(400).json({
+      error: "Invalid agentId.",
+    });
+  }
+
+  try {
+    const { items, warnings, fetchedAt } = await discoverTopics();
+
+    const evaluatedItems = evaluateTopics(items);
+
+    const memoryAwareItems = evaluatedItems.map((topic) => ({
+      ...topic,
+      previouslySeen: hasRememberedTopic(topic),
+    }));
+
+    updateStatsFromEvaluation(memoryAwareItems);
+
+    const selectedTopic = selectTopicForPublishing(memoryAwareItems);
+
+    if (selectedTopic) {
+      const generated = generatePost(
+        selectedTopic,
+        state.persona
+      );
+
+      const post = {
+        id: require("crypto").randomUUID(),
+        createdAt: new Date().toISOString(),
+        text: generated.text,
+        rationale: generated.rationale,
+        sources: generated.sources,
+      };
+
+      state.publishedPosts.push(post);
+
+      rememberTopic(selectedTopic);
+    }
+
+    const posts = [...state.publishedPosts].sort(
+      (a, b) =>
+        new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    res.json({
+      posts,
+      ...(warnings &&
+        warnings.length > 0 && {
+          warnings,
+        }),
+      fetchedAt,
+    });
+  } catch (err) {
+    console.error(
+      "[api/agent/feed] Failure:",
+      err.message
+    );
+
+    res.status(200).json({
+      posts: state.publishedPosts || [],
+      error:
+        "Autonomous publishing temporarily unavailable.",
+    });
+  }
+});
 // ---------- Start server ----------
 
 app.listen(PORT, () => {
