@@ -5,10 +5,15 @@ const express = require("express");
 const cors = require("cors");
 
 const { pipelineStatus, decisions, memory } = require("./data/mockData");
+const { getMemory } = require("./memory/memoryStore");
 const { discoverTopics } = require("./discovery/discoverTopics");
 const { evaluateTopics } = require("./evaluation/evaluateTopic");
 const { getStats, updateStatsFromEvaluation } = require("./state/statsStore");
 const { initializeAgent } = require("./state/agentState");
+const {
+  hasRememberedTopic,
+  rememberTopic,
+} = require("./memory/memoryStore");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -66,7 +71,7 @@ app.get("/api/decisions", (req, res) => {
 });
 
 app.get("/api/memory", (req, res) => {
-  res.json(memory);
+  res.json(getMemory());
 });
 
 // ---------- Checkpoint 3 + 4: discovery -> evaluation ----------
@@ -75,11 +80,15 @@ app.get("/api/intelligence", async (req, res) => {
   try {
     const { items, warnings, fetchedAt } = await discoverTopics();
     const evaluatedItems = evaluateTopics(items);
+    const memoryAwareItems = evaluatedItems.map((topic) => ({
+  ...topic,
+  previouslySeen: hasRememberedTopic(topic),
+}));
 
-    updateStatsFromEvaluation(evaluatedItems);
+    updateStatsFromEvaluation(memoryAwareItems);
 
     res.json({
-      items: evaluatedItems,
+      items: memoryAwareItems,
       fetchedAt,
       ...(warnings && warnings.length > 0 && { warnings }),
     });
