@@ -1,80 +1,71 @@
-const fs = require("fs");
-const path = require("path");
+const BREETH_API_URL = "https://api.thebreeth.com/v1";
 
-const MEMORY_FILE = path.join(__dirname, "memory.json");
-
-function readMemory() {
-  try {
-    if (!fs.existsSync(MEMORY_FILE)) {
-      return [];
-    }
-
-    const data = fs.readFileSync(MEMORY_FILE, "utf-8");
-
-    if (!data.trim()) {
-      return [];
-    }
-
-    return JSON.parse(data);
-  } catch (error) {
-    console.error("[memory] Failed to read memory:", error.message);
-    return [];
-  }
-}
-
-function writeMemory(memory) {
-  fs.writeFileSync(
-    MEMORY_FILE,
-    JSON.stringify(memory, null, 2),
-    "utf-8"
-  );
-}
-
-function rememberTopic(topic) {
-  const memory = readMemory();
-
-  const alreadyExists = memory.some(
-    (item) => item.topicId === topic.id
-  );
-
-  if (alreadyExists) {
-    return false;
+async function breethRequest(endpoint, body) {
+  if (!process.env.BREETH_API_KEY) {
+    throw new Error("BREETH_API_KEY is not configured");
   }
 
-  memory.push({
-    topicId: topic.id,
-    title: topic.title,
-    source: topic.source,
-    url: topic.url,
-    rememberedAt: new Date().toISOString(),
+  const response = await fetch(`${BREETH_API_URL}${endpoint}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.BREETH_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
   });
 
-  writeMemory(memory);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Breeth API error ${response.status}: ${errorText}`);
+  }
 
-  return true;
+  return response.json();
 }
 
-function hasRememberedTopic(topic) {
-  const memory = readMemory();
-
-  return memory.some(
-    (item) =>
-      item.topicId === topic.id ||
-      item.url === topic.url
-  );
+async function searchMemory(query, limit = 5) {
+  return breethRequest("/search", {
+    query,
+    limit,
+  });
 }
 
-function getMemory() {
-  return readMemory();
+async function hasRememberedTopic(topic) {
+  try {
+    const result = await searchMemory(
+      `BYTE topic: ${topic.title}`,
+      5
+    );
+
+    return Array.isArray(result?.results) && result.results.length > 0;
+  } catch (error) {
+    console.error("[Breeth] Memory search failed:", error.message);
+    return false;
+  }
 }
 
-function clearMemory() {
-  writeMemory([]);
+async function rememberTopic(topic) {
+  return breethRequest("/episodes", {
+    messages: [
+      {
+        role: "assistant",
+        content: JSON.stringify({
+          type: "BYTE_TOPIC_MEMORY",
+          title: topic.title,
+          summary: topic.summary,
+          source: topic.source,
+          url: topic.url,
+          decision: topic.decision,
+          score: topic.score,
+          reason: topic.reason,
+          rememberedAt: new Date().toISOString(),
+        }),
+      },
+    ],
+  });
 }
 
 module.exports = {
-  rememberTopic,
   hasRememberedTopic,
-  getMemory,
-  clearMemory,
+  rememberTopic,
+  searchMemory,
 };
