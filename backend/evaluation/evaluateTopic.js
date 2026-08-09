@@ -22,7 +22,7 @@ const {
   DEFAULT_CREDIBILITY,
 } = require("./keywords");
 
-const ACCEPT_THRESHOLD = 55;
+const ACCEPT_THRESHOLD = 50;
 
 function countMatches(text, terms) {
   return terms.filter((term) => text.includes(term));
