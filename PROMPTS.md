@@ -82,3 +82,64 @@ Claude
 ### Outcome
 Generated the initial React dashboard structure and UI. The UI will
 later be connected to the BYTE backend APIs.
+
+## 3. Backend API Foundation
+
+### Prompt
+
+Extend the existing BYTE AI Engineering Watchdog Node.js/Express backend
+to provide the API foundation required by the React frontend.
+
+Create a new file:
+
+backend/data/mockData.js
+
+Keep static placeholder data separate from routing logic.
+
+The mock data should expose:
+- stats
+- pipelineStatus
+- intelligence
+- decisions
+- memory
+
+Add the following backend endpoints:
+
+GET /api/status
+GET /api/stats
+GET /api/pipeline/status
+GET /api/intelligence
+GET /api/decisions
+GET /api/memory
+
+The endpoints should return static JSON only.
+
+Do not add:
+- AI model calls
+- database connections
+- real topic discovery
+- authentication
+- API keys
+- external network calls
+
+Keep the existing Express, CORS, dotenv, and nodemon setup intact.
+
+The backend should continue running on port 5000.
+
+Keep the implementation modular so the mock data can later be replaced
+with real discovery, evaluation, generation, and persistent memory systems.
+
+### Purpose
+
+Create a stable API contract between the BYTE React frontend and
+future backend intelligence systems.
+
+### AI Tool
+
+Claude
+
+### Outcome
+
+Added the backend API foundation with mock data and endpoints for
+pipeline status, intelligence, decisions, and memory. No real AI,
+database, or discovery logic has been added yet.
