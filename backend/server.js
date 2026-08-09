@@ -11,6 +11,10 @@ const { evaluateTopics } = require("./evaluation/evaluateTopic");
 const { getStats, updateStatsFromEvaluation } = require("./state/statsStore");
 const { initializeAgent } = require("./state/agentState");
 const {
+  searchBreethMemory,
+  rememberInBreeth,
+} = require("./memory/breethMemory");
+const {
   hasRememberedTopic,
   rememberTopic,
 } = require("./memory/memoryStore");

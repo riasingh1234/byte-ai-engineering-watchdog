@@ -478,3 +478,40 @@ ChatGPT / Claude
 Added a persistent local memory store that records previously
 published topics and allows the agent to determine whether a discovered
 topic has already been seen.
+
+## 8. Breeth Persistent Memory Integration
+
+### Prompt
+
+Integrate Breeth's REST API into BYTE's backend as the persistent
+semantic memory layer.
+
+Use Breeth's REST API for:
+
+- POST /v1/episodes to store agent history
+- POST /v1/search to retrieve relevant previous memories
+
+Keep the Breeth API key in the backend environment and never expose it
+to the frontend.
+
+Create a modular memory integration rather than putting Breeth API calls
+directly into server.js.
+
+The memory system should eventually allow BYTE to remember previously
+published topics and use that memory to avoid repetitive content.
+
+Do not expose the API key or hard-code credentials.
+
+### Purpose
+
+Connect BYTE's autonomous agent to persistent semantic memory so its
+future publishing decisions can use previous experience.
+
+### AI Tool
+
+ChatGPT
+
+### Outcome
+
+Added a dedicated Breeth memory integration module using Breeth's REST
+API for semantic memory search and memory storage.
