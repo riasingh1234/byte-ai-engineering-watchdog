@@ -8,6 +8,7 @@ const { pipelineStatus, decisions, memory } = require("./data/mockData");
 const { discoverTopics } = require("./discovery/discoverTopics");
 const { evaluateTopics } = require("./evaluation/evaluateTopic");
 const { getStats, updateStatsFromEvaluation } = require("./state/statsStore");
+const { initializeAgent } = require("./state/agentState");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -32,6 +33,26 @@ app.get("/api/status", (req, res) => {
 
 app.get("/api/stats", (req, res) => {
   res.json(getStats());
+});
+// ---------- Agent initialization ----------
+
+app.post("/api/agent/init", (req, res) => {
+  const persona = req.body?.persona;
+
+  if (!persona || typeof persona.name !== "string" || !persona.name.trim()) {
+    return res.status(400).json({ error: "persona.name is required." });
+  }
+
+  if (typeof persona.domain !== "string" || !persona.domain.trim()) {
+    return res.status(400).json({ error: "persona.domain is required." });
+  }
+
+  const state = initializeAgent({
+    name: persona.name.trim(),
+    domain: persona.domain.trim(),
+  });
+
+  res.json({ agentId: state.agentId });
 });
 
 // ---------- Pipeline / decisions / memory (still static placeholders) ----------
